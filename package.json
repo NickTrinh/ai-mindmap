@@ -1,5 +1,5 @@
 {
-  "name": "ai-tutor",
+  "name": "ai-mindmap",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -10,11 +10,12 @@
   },
   "dependencies": {
     "@anthropic-ai/sdk": "^0.32.1",
+    "@xyflow/react": "^12.4.2",
     "mongodb": "^6.10.0",
     "mongoose": "^8.8.2",
     "next": "15.0.3",
-    "react": "19.0.0-rc-66855b96-20241106",
-    "react-dom": "19.0.0-rc-66855b96-20241106"
+    "react": "^18.2.0",
+    "react-dom": "^18.2.0"
   },
   "devDependencies": {
     "eslint": "^8",

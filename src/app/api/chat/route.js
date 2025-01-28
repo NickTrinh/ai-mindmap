@@ -2,6 +2,7 @@
 import { Anthropic } from '@anthropic-ai/sdk';
 import connectDB from '../../lib/mongoose';
 import FlashcardSet from '../../models/FlashcardSet';
+import MindMap from '../../models/MindMap';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -46,6 +47,42 @@ const tools = [
       required: ['title', 'cards'],
     },
   },
+  {
+    name: 'create_mind_map',
+    description:
+      'REQUIRED tool for creating mind maps from study materials. Use this tool whenever the user wants to generate or create a mind map.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: {
+          type: 'string',
+          description: 'Title of the mind map',
+        },
+        nodes: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: {
+                type: 'string',
+                description: 'Unique identifier for the node',
+              },
+              text: {
+                type: 'string',
+                description: 'Content of the node',
+              },
+              parentId: {
+                type: 'string',
+                description: 'ID of parent node (null for root)',
+              },
+            },
+            required: ['id', 'text'],
+          },
+        },
+      },
+      required: ['title', 'nodes'],
+    },
+  },
 ];
 
 async function saveFlashcardSet(data) {
@@ -68,11 +105,29 @@ async function saveFlashcardSet(data) {
   }
 }
 
+async function saveMindMap(data) {
+  try {
+    await connectDB();
+    const mindMap = new MindMap({
+      title: data.title,
+      nodes: data.nodes,
+    });
+    await mindMap.save();
+    return {
+      id: mindMap._id.toString(),
+      title: mindMap.title,
+      nodeCount: mindMap.nodes.length,
+    };
+  } catch (error) {
+    console.error('MongoDB save error:', error);
+    throw error;
+  }
+}
+
 export async function POST(request) {
   try {
     const { messages } = await request.json();
 
-    // First API call to get tool use response
     const response = await anthropic.messages.create({
       model: 'claude-3-5-haiku-latest',
       max_tokens: 4096,
@@ -85,23 +140,28 @@ export async function POST(request) {
       tools: tools,
     });
 
-    // Check if Claude wants to use a tool
     if (response.stop_reason === 'tool_use') {
       const toolCall = response.content[1]?.name || response.content[0]?.name;
+      const toolInput =
+        response.content[1]?.input || response.content[0]?.input;
 
       if (toolCall === 'create_flashcard_set') {
-        // Execute tool and get result
-        const sets = response.content[1]?.input || response.content[0]?.input;
-        const savedSet = await saveFlashcardSet(sets);
-
+        const savedSet = await saveFlashcardSet(toolInput);
         return Response.json({
-          message: `Created flashcard set: ${sets.title} with ${sets.cards.length} cards`,
+          message: `Created flashcard set: ${toolInput.title} with ${toolInput.cards.length} cards`,
           flashcardSet: savedSet,
+        });
+      }
+
+      if (toolCall === 'create_mind_map') {
+        const savedMap = await saveMindMap(toolInput);
+        return Response.json({
+          message: `Created mind map: ${toolInput.title} with ${toolInput.nodes.length} nodes`,
+          mindMap: savedMap,
         });
       }
     }
 
-    // Regular response if no tool was used
     return Response.json({
       message: response.content[0].text,
     });

@@ -1,1 +1,1 @@
-Check this project out on: ai-tutor-kohl-six.vercel.app
+Check this project out on: ai-mindmap-kohl-six.vercel.app
