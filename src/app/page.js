@@ -1,14 +1,21 @@
 'use client';
+
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
+import Link from 'next/link';
 
 export default function Home() {
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [flashcardSets, setFlashcardSets] = useState([]);
+  const [mindMaps, setMindMaps] = useState([]);
+  const [mindMaps, setMindMaps] = useState([]);
 
   useEffect(() => {
     fetchFlashcardSets();
+    fetchMindMaps();
+    fetchMindMaps();
   }, []);
 
   async function fetchFlashcardSets() {
@@ -20,6 +27,30 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Failed to fetch flashcard sets:', error);
+    }
+  }
+
+  async function fetchMindMaps() {
+    try {
+      const res = await fetch('/api/mindmaps');
+      if (res.ok) {
+        const data = await res.json();
+        setMindMaps(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch mind maps:', error);
+    }
+  }
+
+  async function fetchMindMaps() {
+    try {
+      const res = await fetch('/api/mindmaps');
+      if (res.ok) {
+        const data = await res.json();
+        setMindMaps(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch mind maps:', error);
     }
   }
 
@@ -50,8 +81,13 @@ export default function Home() {
       ]);
 
       if (data.flashcardSet) {
-        // Refresh flashcard sets list when new set is created
         fetchFlashcardSets();
+      }
+      if (data.mindMap) {
+        fetchMindMaps();
+      }
+      if (data.mindMap) {
+        fetchMindMaps();
       }
     } catch (error) {
       console.error(error);
@@ -70,45 +106,89 @@ export default function Home() {
   return (
     <div className="grid grid-cols-[280px_1fr] min-h-screen bg-gray-50 dark:bg-gray-900">
       <aside className="border-r border-gray-200 dark:border-gray-800 p-4 bg-white dark:bg-gray-950">
-        <h2 className="font-bold mb-4">Flashcard Sets</h2>
-        <nav className="space-y-2">
-          {flashcardSets.map(set => (
-            <div key={set.id} className="flex items-center justify-between">
-              <a
-                href={`/flashcards/${set.id}`}
-                className="flex-grow p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
-              >
-                {set.title} ({set.cardCount} cards)
-              </a>
-              <button
-                onClick={async e => {
-                  e.preventDefault();
-                  const res = await fetch(`/api/flashcards/${set.id}`, {
-                    method: 'DELETE',
-                  });
-                  if (res.ok) {
-                    fetchFlashcardSets(); // Refresh the list
-                  }
-                }}
-                className="p-2 text-red-500 hover:text-red-700"
-                title="Delete flashcard set"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  className="h-5 w-5"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
+        <div className="mb-8">
+          <h2 className="font-bold mb-4">Flashcard Sets</h2>
+          <nav className="space-y-2">
+            {flashcardSets.map(set => (
+              <div key={set.id} className="flex items-center justify-between">
+                <Link
+                  href={`/flashcards/${set.id}`}
+                  className="flex-grow p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
                 >
-                  <path
-                    fillRule="evenodd"
-                    d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
-                    clipRule="evenodd"
-                  />
-                </svg>
-              </button>
-            </div>
-          ))}
-        </nav>
+                  {set.title} ({set.cardCount} cards)
+                </Link>
+                <button
+                  onClick={async e => {
+                    e.preventDefault();
+                    const res = await fetch(`/api/flashcards/${set.id}`, {
+                      method: 'DELETE',
+                    });
+                    if (res.ok) {
+                      fetchFlashcardSets();
+                    }
+                  }}
+                  className="p-2 text-red-500 hover:text-red-700"
+                  title="Delete flashcard set"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </nav>
+        </div>
+
+        <div>
+          <h2 className="font-bold mb-4">Mind Maps</h2>
+          <nav className="space-y-2">
+            {mindMaps.map(map => (
+              <div key={map.id} className="flex items-center justify-between">
+                <Link
+                  href={`/mindmaps/${map.id}`}
+                  className="flex-grow p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-800"
+                >
+                  {map.title} ({map.nodeCount} nodes)
+                </Link>
+                <button
+                  onClick={async e => {
+                    e.preventDefault();
+                    const res = await fetch(`/api/mindmaps/${map.id}`, {
+                      method: 'DELETE',
+                    });
+                    if (res.ok) {
+                      fetchMindMaps();
+                    }
+                  }}
+                  className="p-2 text-red-500 hover:text-red-700"
+                  title="Delete mind map"
+                >
+                  <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    className="h-5 w-5"
+                    viewBox="0 0 20 20"
+                    fill="currentColor"
+                  >
+                    <path
+                      fillRule="evenodd"
+                      d="M9 2a1 1 0 00-.894.553L7.382 4H4a1 1 0 000 2v10a2 2 0 002 2h8a2 2 0 002-2V6a1 1 0 100-2h-3.382l-.724-1.447A1 1 0 0011 2H9zM7 8a1 1 0 012 0v6a1 1 0 11-2 0V8zm5-1a1 1 0 00-1 1v6a1 1 0 102 0V8a1 1 0 00-1-1z"
+                      clipRule="evenodd"
+                    />
+                  </svg>
+                </button>
+              </div>
+            ))}
+          </nav>
+        </div>
       </aside>
 
       <main className="flex flex-col">
