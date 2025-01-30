@@ -2,6 +2,7 @@
 import { Anthropic } from '@anthropic-ai/sdk';
 import connectDB from '../../lib/mongoose';
 import FlashcardSet from '../../models/FlashcardSet';
+import MindMap from '../../models/MindMap';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -9,7 +10,8 @@ const anthropic = new Anthropic({
 
 const SYSTEM_PROMPT = `You are an AI tutor helping students learn.
 When a user asks to create flashcards, you MUST use the create_flashcard_set tool - do not respond with text.
-The create_flashcard_set tool is the only way to create flashcards.
+When a user asks to create a mind map, you MUST use the create_mind_map tool - do not respond with text.
+The create_flashcard_set and create_mind_map tools are the only ways to create their respective resources.
 For all other questions, respond normally.
 Do not hallucinate or make things up.`;
 
@@ -46,33 +48,83 @@ const tools = [
       required: ['title', 'cards'],
     },
   },
+  {
+    name: 'create_mind_map',
+    description:
+      'REQUIRED tool for creating mind maps. You MUST use this tool whenever the user wants to create, generate, or make a mind map. Do not respond with text for mind map creation requests.',
+    input_schema: {
+      type: 'object',
+      properties: {
+        title: {
+          type: 'string',
+          description: 'Title of the mind map (central node).',
+        },
+        nodes: {
+          type: 'array',
+          items: {
+            type: 'object',
+            properties: {
+              id: {
+                type: 'string',
+                description: 'Unique identifier for the node',
+              },
+              content: {
+                type: 'string',
+                description: 'Content of the node',
+              },
+              parentId: {
+                type: 'string',
+                description: 'ID of the parent node. null for root node.',
+              },
+            },
+            required: ['id', 'content'],
+          },
+        },
+      },
+      required: ['title', 'nodes'],
+    },
+  },
 ];
 
 async function saveFlashcardSet(data) {
-  console.log('Save flashcard set:', data);
   try {
-    await connectDB();
-    const flashcardSet = new FlashcardSet({
-      title: data.title,
-      cards: data.cards,
-    });
+    const flashcardSet = new FlashcardSet(data);
     await flashcardSet.save();
     return {
+      tool: 'create_flashcard_set',
       id: flashcardSet._id.toString(),
       title: flashcardSet.title,
       cardCount: flashcardSet.cards.length,
     };
   } catch (error) {
-    console.error('MongoDB save error:', error);
+    console.error('Error saving flashcard set:', error);
     throw error;
   }
 }
 
-export async function POST(request) {
+async function saveMindMap(data) {
   try {
-    const { messages } = await request.json();
+    const mindMap = new MindMap(data);
+    await mindMap.save();
+    return {
+      tool: 'create_mind_map',
+      id: mindMap._id.toString(),
+      title: mindMap.title,
+      nodeCount: mindMap.nodes.length,
+    };
+  } catch (error) {
+    console.error('Error saving mind map:', error);
+    throw error;
+  }
+}
 
-    // First API call to get tool use response
+export async function POST(req) {
+  try {
+    const body = await req.json();
+    const { messages } = body;
+
+    await connectDB();
+
     const response = await anthropic.messages.create({
       model: 'claude-3-5-haiku-latest',
       max_tokens: 4096,
@@ -98,6 +150,13 @@ export async function POST(request) {
           message: `Created flashcard set: ${sets.title} with ${sets.cards.length} cards`,
           flashcardSet: savedSet,
         });
+      } else if (toolCall === 'create_mind_map') {
+        const maps = response.content[1]?.input || response.content[0]?.input;
+        const savedMap = await saveMindMap(maps);
+        return Response.json({
+          message: `Created mind map: ${maps.title} with ${maps.nodes.length} nodes`,
+          mindMap: savedMap,
+        });
       }
     }
 
@@ -106,15 +165,9 @@ export async function POST(request) {
       message: response.content[0].text,
     });
   } catch (error) {
-    console.error('Chat API error:', error);
-    if (error.status === 400) {
-      return Response.json(
-        { error: `Invalid request: ${error.message}` },
-        { status: 400 }
-      );
-    }
+    console.error('Error in chat route:', error);
     return Response.json(
-      { error: 'Failed to process chat message' },
+      { error: 'Failed to process request' },
       { status: 500 }
     );
   }
