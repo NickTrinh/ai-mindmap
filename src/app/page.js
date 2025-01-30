@@ -1,5 +1,7 @@
 'use client';
+
 import { useState, useEffect } from 'react';
+import Link from 'next/link';
 import Link from 'next/link';
 
 export default function Home() {
@@ -8,9 +10,11 @@ export default function Home() {
   const [isLoading, setIsLoading] = useState(false);
   const [flashcardSets, setFlashcardSets] = useState([]);
   const [mindMaps, setMindMaps] = useState([]);
+  const [mindMaps, setMindMaps] = useState([]);
 
   useEffect(() => {
     fetchFlashcardSets();
+    fetchMindMaps();
     fetchMindMaps();
   }, []);
 
@@ -23,6 +27,18 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Failed to fetch flashcard sets:', error);
+    }
+  }
+
+  async function fetchMindMaps() {
+    try {
+      const res = await fetch('/api/mindmaps');
+      if (res.ok) {
+        const data = await res.json();
+        setMindMaps(data);
+      }
+    } catch (error) {
+      console.error('Failed to fetch mind maps:', error);
     }
   }
 
@@ -66,6 +82,9 @@ export default function Home() {
 
       if (data.flashcardSet) {
         fetchFlashcardSets();
+      }
+      if (data.mindMap) {
+        fetchMindMaps();
       }
       if (data.mindMap) {
         fetchMindMaps();
