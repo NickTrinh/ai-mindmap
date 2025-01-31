@@ -9,6 +9,8 @@ import ReactFlow, {
   addEdge,
   Position,
   MarkerType,
+  useReactFlow,
+  Handle,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 
@@ -17,6 +19,8 @@ const nodeTypes = {
   mindmap: ({ data }) => (
     <div className="px-4 py-2 shadow-lg rounded-lg border-2 border-emerald-300 bg-emerald-50 min-w-[150px]">
       <div className="text-sm font-medium text-emerald-900">{data.label}</div>
+      <Handle type="target" position={Position.Left} />
+      <Handle type="source" position={Position.Right} />
     </div>
   ),
   diamond: ({ data }) => (
@@ -24,6 +28,8 @@ const nodeTypes = {
       <div className="-rotate-45 text-sm font-medium text-rose-900">
         {data.label}
       </div>
+      <Handle type="target" position={Position.Left} />
+      <Handle type="source" position={Position.Right} />
     </div>
   ),
   process: ({ data }) => (
@@ -31,16 +37,21 @@ const nodeTypes = {
       <div className="text-base font-semibold text-indigo-900 text-center">
         {data.label}
       </div>
+      <Handle type="source" position={Position.Right} />
     </div>
   ),
   category: ({ data }) => (
     <div className="px-4 py-2 shadow-lg rounded-lg border-2 border-amber-300 bg-amber-50 min-w-[150px]">
       <div className="text-sm font-medium text-amber-900">{data.label}</div>
+      <Handle type="target" position={Position.Left} />
+      <Handle type="source" position={Position.Right} />
     </div>
   ),
 };
 
 export default function MindMapVisualization({ mindMap }) {
+  const reactFlowInstance = useReactFlow();
+
   const getNodeType = node => {
     if (
       node.content.toLowerCase().includes('protocol') ||
@@ -48,7 +59,6 @@ export default function MindMapVisualization({ mindMap }) {
     )
       return 'diamond';
     if (node.parentId === null) return 'process';
-    // Check if node is a category (has children)
     if (mindMap.nodes.some(n => n.parentId === node.id)) return 'category';
     return 'mindmap';
   };
@@ -107,16 +117,10 @@ export default function MindMapVisualization({ mindMap }) {
       target: node.id,
       type: 'step',
       style: {
-        stroke: '#6366f1',
-        strokeWidth: 3,
+        stroke: '#000000',
+        strokeWidth: 2,
         opacity: 1,
         zIndex: 0,
-      },
-      markerEnd: {
-        type: MarkerType.ArrowClosed,
-        width: 20,
-        height: 20,
-        color: '#6366f1',
       },
     }));
 
@@ -128,15 +132,13 @@ export default function MindMapVisualization({ mindMap }) {
     [setEdges]
   );
 
-  // Add auto-center on load
   useEffect(() => {
-    const reactFlowInstance = document.querySelector('.react-flow');
     if (reactFlowInstance) {
       setTimeout(() => {
         reactFlowInstance.fitView({ padding: 0.2 });
       }, 100);
     }
-  }, []);
+  }, [reactFlowInstance]);
 
   return (
     <div className="w-full h-full">
@@ -152,12 +154,8 @@ export default function MindMapVisualization({ mindMap }) {
         defaultEdgeOptions={{
           type: 'step',
           style: {
-            strokeWidth: 3,
-            stroke: '#6366f1',
-          },
-          markerEnd: {
-            type: MarkerType.ArrowClosed,
-            color: '#6366f1',
+            strokeWidth: 2,
+            stroke: '#000000',
           },
         }}
         className="bg-slate-50"

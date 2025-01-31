@@ -2,14 +2,12 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Link from 'next/link';
 
 export default function Home() {
   const [messages, setMessages] = useState([]);
   const [message, setMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
   const [flashcardSets, setFlashcardSets] = useState([]);
-  const [mindMaps, setMindMaps] = useState([]);
   const [mindMaps, setMindMaps] = useState([]);
 
   useEffect(() => {

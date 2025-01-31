@@ -4,8 +4,9 @@ import MindMap from '../../../models/MindMap';
 export async function GET(request, { params }) {
   try {
     await connectDB();
+    const { id } = await params;
 
-    const mindMap = await MindMap.findById(params.id);
+    const mindMap = await MindMap.findById(id);
 
     if (!mindMap) {
       return Response.json({ error: 'Mind map not found' }, { status: 404 });
@@ -49,7 +50,9 @@ export async function PUT(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     await connectDB();
-    const result = await MindMap.findByIdAndDelete(params.id);
+    const { id } = await params;
+
+    const result = await MindMap.findByIdAndDelete(id);
 
     if (!result) {
       return Response.json({ error: 'Mind map not found' }, { status: 404 });
