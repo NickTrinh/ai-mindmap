@@ -4,8 +4,9 @@ import FlashcardSet from '../../../models/FlashcardSet';
 export async function GET(request, { params }) {
   try {
     await connectDB();
+    const { id } = await params;
 
-    const set = await FlashcardSet.findById(params.id);
+    const set = await FlashcardSet.findById(id);
 
     if (!set) {
       return Response.json(
@@ -27,7 +28,9 @@ export async function GET(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     await connectDB();
-    const result = await FlashcardSet.findByIdAndDelete(params.id);
+    const { id } = await params;
+    
+    const result = await FlashcardSet.findByIdAndDelete(id);
 
     if (!result) {
       return Response.json(

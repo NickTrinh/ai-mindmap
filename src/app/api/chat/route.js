@@ -3,7 +3,6 @@ import { Anthropic } from '@anthropic-ai/sdk';
 import connectDB from '../../lib/mongoose';
 import FlashcardSet from '../../models/FlashcardSet';
 import MindMap from '../../models/MindMap';
-import MindMap from '../../models/MindMap';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
@@ -105,41 +104,7 @@ async function saveFlashcardSet(data) {
 
 async function saveMindMap(data) {
   try {
-    const mindMap = new MindMap(data);
-    await mindMap.save();
-    return {
-      tool: 'create_mind_map',
-      id: mindMap._id.toString(),
-      title: mindMap.title,
-      nodeCount: mindMap.nodes.length,
-    };
-  } catch (error) {
-    console.error('Error saving mind map:', error);
-    throw error;
-  }
-}
-
-async function saveMindMap(data) {
-  try {
     await connectDB();
-    const mindMap = new MindMap({
-      title: data.title,
-      nodes: data.nodes,
-    });
-    await mindMap.save();
-    return {
-      id: mindMap._id.toString(),
-      title: mindMap.title,
-      nodeCount: mindMap.nodes.length,
-    };
-  } catch (error) {
-    console.error('Error saving flashcard set:', error);
-    throw error;
-  }
-}
-
-async function saveMindMap(data) {
-  try {
     const mindMap = new MindMap(data);
     await mindMap.save();
     return {
