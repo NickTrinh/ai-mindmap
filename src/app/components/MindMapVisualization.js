@@ -1,5 +1,5 @@
 'use client';
-import { useCallback, useEffect } from 'react';
+import { useCallback, useEffect, useState } from 'react';
 import ReactFlow, {
   MiniMap,
   Controls,
@@ -13,6 +13,7 @@ import ReactFlow, {
   Handle,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
+import MindMapSidebar from './MindMapSidebar';
 
 // Custom node components with updated colors
 const nodeTypes = {
@@ -51,6 +52,7 @@ const nodeTypes = {
 
 export default function MindMapVisualization({ mindMap }) {
   const reactFlowInstance = useReactFlow();
+  const [selectedNode, setSelectedNode] = useState(null);
 
   const getNodeType = node => {
     if (
@@ -115,7 +117,7 @@ export default function MindMapVisualization({ mindMap }) {
       id: `${node.parentId}-${node.id}`,
       source: node.parentId,
       target: node.id,
-      type: 'step',
+      type: 'simplebezier',
       style: {
         stroke: '#000000',
         strokeWidth: 2,
@@ -127,10 +129,93 @@ export default function MindMapVisualization({ mindMap }) {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  const onConnect = useCallback(
-    params => setEdges(eds => addEdge(params, eds)),
-    [setEdges]
+  const onNodeDragStop = useCallback(
+    (event, node) => {
+      // Update node position in the database
+      fetch(`/api/mindmaps/${mindMap._id}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ nodeId: node.id, position: node.position }),
+      });
+    },
+    [mindMap._id]
   );
+
+  const onConnect = useCallback(
+    params => {
+      // Create new edge in the database
+      fetch(`/api/mindmaps/${mindMap._id}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ source: params.source, target: params.target }),
+      });
+      setEdges(eds => addEdge(params, eds));
+    },
+    [mindMap._id, setEdges]
+  );
+
+  const handleAddNode = useCallback(
+    parentId => {
+      const newNode = {
+        id: `node-${Date.now()}`,
+        content: 'New Node',
+        parentId: parentId,
+      };
+
+      fetch(`/api/mindmaps/${mindMap._id}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ newNode }),
+      }).then(() => {
+        // Update local state
+        const position = nodes.find(n => n.id === parentId)?.position || {
+          x: 0,
+          y: 0,
+        };
+        setNodes(nds => [
+          ...nds,
+          {
+            id: newNode.id,
+            type: 'mindmap',
+            position: { x: position.x + 250, y: position.y },
+            data: { label: newNode.content },
+          },
+        ]);
+        setEdges(eds => [
+          ...eds,
+          {
+            id: `${parentId}-${newNode.id}`,
+            source: parentId,
+            target: newNode.id,
+            type: 'simplebezier',
+          },
+        ]);
+      });
+    },
+    [mindMap._id, nodes, setNodes, setEdges]
+  );
+
+  const handleDeleteNode = useCallback(
+    nodeId => {
+      fetch(`/api/mindmaps/${mindMap._id}/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ deleteNodeId: nodeId }),
+      }).then(() => {
+        // Update local state
+        setNodes(nds => nds.filter(node => node.id !== nodeId));
+        setEdges(eds =>
+          eds.filter(edge => edge.source !== nodeId && edge.target !== nodeId)
+        );
+        setSelectedNode(null);
+      });
+    },
+    [mindMap._id, setNodes, setEdges]
+  );
+
+  const onNodeClick = useCallback((event, node) => {
+    setSelectedNode(node);
+  }, []);
 
   useEffect(() => {
     if (reactFlowInstance) {
@@ -152,7 +237,7 @@ export default function MindMapVisualization({ mindMap }) {
         fitView
         fitViewOptions={{ padding: 0.2 }}
         defaultEdgeOptions={{
-          type: 'step',
+          type: 'simplebezier',
           style: {
             strokeWidth: 2,
             stroke: '#000000',
@@ -161,6 +246,9 @@ export default function MindMapVisualization({ mindMap }) {
         className="bg-slate-50"
         elementsSelectable={true}
         nodesConnectable={true}
+        nodesDraggable
+        onNodeDragStop={onNodeDragStop}
+        onNodeClick={onNodeClick}
       >
         <Controls
           showInteractive={false}
@@ -182,6 +270,13 @@ export default function MindMapVisualization({ mindMap }) {
         />
         <Background variant="dots" gap={12} size={1} />
       </ReactFlow>
+      {selectedNode && (
+        <MindMapSidebar
+          node={selectedNode}
+          onAddNode={handleAddNode}
+          onDeleteNode={handleDeleteNode}
+        />
+      )}
     </div>
   );
 }
