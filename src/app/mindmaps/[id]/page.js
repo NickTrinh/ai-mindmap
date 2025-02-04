@@ -47,24 +47,22 @@ export default function MindMap() {
   }
 
   return (
-    <div className="min-h-screen p-8 flex flex-col">
-      <div className="w-full max-w-[1200px] mx-auto mb-4">
+    <div className="h-screen p-4 flex flex-col">
+      <div className="flex items-center justify-between mb-4">
         <Link
           href="/"
-          className="inline-block px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
+          className="px-4 py-2 bg-gray-500 text-white rounded hover:bg-gray-600 transition-colors"
         >
           ← Back to Chat
         </Link>
+        <h1 className="text-2xl font-bold">{mindMap.title}</h1>
+        <div className="w-[100px]"></div>
       </div>
 
-      <h1 className="text-2xl font-bold mb-8 text-center">{mindMap.title}</h1>
-
-      <div className="flex-1 bg-white dark:bg-gray-800 rounded-xl shadow-lg overflow-hidden">
-        <div className="w-full h-[800px]">
-          <ReactFlowProvider>
-            <MindMapVisualization mindMap={mindMap} />
-          </ReactFlowProvider>
-        </div>
+      <div className="flex-1 bg-white rounded-xl shadow-lg overflow-hidden">
+        <ReactFlowProvider>
+          <MindMapVisualization mindMap={mindMap} />
+        </ReactFlowProvider>
       </div>
     </div>
   );

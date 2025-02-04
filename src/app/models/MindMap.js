@@ -13,6 +13,11 @@ const nodeSchema = new mongoose.Schema({
     type: String,
     default: null,
   },
+  nodeType: {
+    type: String,
+    enum: ['mindmap', 'process', 'diamond', 'category'],
+    default: 'mindmap',
+  },
   // Store position for manual arrangements
   position: {
     x: { type: Number, default: 0 },
@@ -20,9 +25,11 @@ const nodeSchema = new mongoose.Schema({
   },
   // Visual customization
   style: {
-    backgroundColor: { type: String, default: '#ffffff' },
-    textColor: { type: String, default: '#000000' },
-    borderColor: { type: String, default: '#000000' },
+    backgroundColor: { type: String },
+    borderColor: { type: String },
+    textColor: { type: String },
+    width: { type: Number },
+    height: { type: Number },
   },
 });
 
