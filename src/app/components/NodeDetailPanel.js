@@ -25,7 +25,7 @@ export default function NodeDetailPanel({ node, onUpdate, onClose }) {
   };
 
   return (
-    <div className="absolute right-0 top-0 w-80 m-4 p-4 bg-white border border-gray-200 shadow-lg rounded-lg">
+    <div className="absolute left-0 bottom-0 w-80 m-4 p-4 bg-white border border-gray-200 shadow-lg rounded-lg">
       <div className="flex justify-between items-center mb-4">
         <h3 className="text-lg font-semibold text-gray-800">Node Details</h3>
         <button
@@ -46,7 +46,7 @@ export default function NodeDetailPanel({ node, onUpdate, onClose }) {
             onChange={e =>
               setNodeData(prev => ({ ...prev, content: e.target.value }))
             }
-            className="w-full p-2 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full p-2 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
             rows={3}
           />
         </div>
@@ -60,7 +60,7 @@ export default function NodeDetailPanel({ node, onUpdate, onClose }) {
             onChange={e =>
               setNodeData(prev => ({ ...prev, type: e.target.value }))
             }
-            className="w-full p-2 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            className="w-full p-2 border border-gray-200 rounded-md focus:ring-2 focus:ring-blue-500 focus:border-transparent text-black"
           >
             {nodeTypes.map(type => (
               <option key={type.value} value={type.value}>

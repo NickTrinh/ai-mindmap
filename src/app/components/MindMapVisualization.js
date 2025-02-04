@@ -17,6 +17,7 @@ import MindMapSidebar from './MindMapSidebar';
 import NodeDetailPanel from './NodeDetailPanel';
 import dagre from '@dagrejs/dagre';
 import LayoutControls from './LayoutControls';
+import MindMapActions from './MindMapActions';
 
 // Custom node components with updated colors
 const nodeTypes = {
@@ -58,7 +59,7 @@ export default function MindMapVisualization({ mindMap }) {
   const [selectedNode, setSelectedNode] = useState(null);
   const [contextMenu, setContextMenu] = useState(null);
   const [showNodeDetail, setShowNodeDetail] = useState(false);
-  const [selectedLayout, setSelectedLayout] = useState('default');
+  const [selectedLayout, setSelectedLayout] = useState('dagre-lr');
 
   const getNodeType = node => {
     // Protocol or question nodes become diamonds
@@ -87,7 +88,7 @@ export default function MindMapVisualization({ mindMap }) {
     return 'mindmap';
   };
 
-  const transformNodesToReactFlow = mindMap => {
+  const transformNodesToReactFlow = useCallback(mindMap => {
     const horizontalSpacing = 250;
     const verticalSpacing = 100;
     const levels = new Map();
@@ -130,7 +131,7 @@ export default function MindMapVisualization({ mindMap }) {
         },
       };
     });
-  };
+  });
 
   const initialNodes = transformNodesToReactFlow(mindMap);
   const initialEdges = mindMap.nodes
@@ -335,46 +336,92 @@ export default function MindMapVisualization({ mindMap }) {
   }, [reactFlowInstance]);
 
   return (
-    <div className="w-full h-full relative bg-white">
-      <ReactFlow
-        nodes={nodes}
-        edges={edges}
-        onNodesChange={onNodesChange}
-        onEdgesChange={onEdgesChange}
-        onConnect={onConnect}
-        nodeTypes={nodeTypes}
-        fitView
-        onNodeContextMenu={onNodeContextMenu}
-        onClick={() => {
-          setContextMenu(null);
-          setShowNodeDetail(false);
-        }}
-      >
-        <LayoutControls onLayoutChange={handleLayoutChange} />
-        <Controls className="bg-white border border-gray-200 shadow-md" />
-        <MiniMap
-          className="bg-white border border-gray-200 shadow-md"
-          nodeColor={node => {
-            switch (node.type) {
-              case 'diamond':
-                return '#fff1f2';
-              case 'process':
-                return '#eef2ff';
-              case 'category':
-                return '#fef3c7';
-              default:
-                return '#ecfdf5';
+    <div className="w-full h-full flex">
+      <div className="flex-1 relative bg-white">
+        <div className="absolute top-4 right-4 z-10"></div>
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          nodeTypes={nodeTypes}
+          fitView
+          onNodeClick={(event, node) => {
+            setContextMenu(null);
+            setShowNodeDetail(false);
+            setSelectedNode(node);
+          }}
+          onNodeContextMenu={onNodeContextMenu}
+          onClick={event => {
+            if (event.target === event.currentTarget) {
+              setContextMenu(null);
+              setShowNodeDetail(false);
+              setSelectedNode(null);
             }
           }}
-          maskColor="rgba(255, 255, 255, 0.5)"
-        />
-        <Background
-          color="#64748b"
-          gap={16}
-          size={1}
-          style={{ backgroundColor: '#ffffff' }}
-        />
-      </ReactFlow>
+        >
+          <Background
+            color="#64748b"
+            gap={16}
+            size={1}
+            style={{ backgroundColor: '#ffffff' }}
+          />
+        </ReactFlow>
+      </div>
+
+      <div className="w-64 border-l border-gray-200 p-4 bg-white">
+        <div className="space-y-4">
+          <div className="space-y-2">
+            <h3 className="font-medium text-gray-900">Layout</h3>
+            <select
+              defaultValue="dagre-lr"
+              onChange={e => handleLayoutChange(e.target.value)}
+              className="block w-full px-3 py-2 text-sm rounded-md border border-gray-300 text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="dagre-lr">Left to Right</option>
+              <option value="dagre-tb">Top to Bottom</option>
+            </select>
+          </div>
+
+          <div className="space-y-2 pt-2 border-t border-gray-200">
+            <h3 className="font-medium text-gray-900">Import/Export</h3>
+            <MindMapActions mindMap={mindMap} />
+          </div>
+
+          {selectedNode && (
+            <div className="space-y-2 pt-2 border-t border-gray-200">
+              <h3 className="font-medium text-gray-900">Selected Node</h3>
+              <p className="text-sm text-gray-600">{selectedNode.data.label}</p>
+              <div className="flex flex-col gap-2">
+                <button
+                  onClick={() => handleAddNode(selectedNode.id)}
+                  className="px-3 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 transition-colors text-sm"
+                >
+                  Add Child Node
+                </button>
+                <button
+                  onClick={() => {
+                    handleDeleteNode(selectedNode.id);
+                    setSelectedNode(null);
+                  }}
+                  className="px-3 py-2 bg-red-500 text-white rounded-md hover:bg-red-600 transition-colors text-sm"
+                >
+                  Delete Node
+                </button>
+                <button
+                  onClick={() => {
+                    setShowNodeDetail(true);
+                  }}
+                  className="px-3 py-2 bg-purple-500 text-white rounded-md hover:bg-purple-600 transition-colors text-sm"
+                >
+                  Edit Node
+                </button>
+              </div>
+            </div>
+          )}
+        </div>
+      </div>
 
       {contextMenu && (
         <div
