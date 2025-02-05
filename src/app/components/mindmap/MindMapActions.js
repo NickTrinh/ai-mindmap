@@ -3,7 +3,7 @@ import { useReactFlow } from 'reactflow';
 import { toPng } from 'html-to-image';
 
 export default function MindMapActions({ mindMap }) {
-  const { getNodes, getEdges } = useReactFlow();
+  const { getNodes, getEdges, fitView, setCenter } = useReactFlow();
 
   const handleExport = useCallback(() => {
     const nodes = getNodes();
@@ -42,27 +42,77 @@ export default function MindMapActions({ mindMap }) {
   }, [getNodes, getEdges, mindMap.title]);
 
   const handleExportImage = useCallback(() => {
-    const flowElement = document.querySelector('.react-flow');
-    if (!flowElement) return;
+    const nodes = getNodes();
+    if (!nodes.length) return;
 
-    toPng(flowElement, {
-      quality: 1,
-      width: flowElement.offsetWidth,
-      height: flowElement.offsetHeight,
-      backgroundColor: '#ffffff',
-    })
-      .then(dataUrl => {
-        const link = document.createElement('a');
-        link.href = dataUrl;
-        link.download = `${mindMap.title
-          .toLowerCase()
-          .replace(/\s+/g, '-')}-mindmap.png`;
-        link.click();
+    // Calculate the bounding box of all nodes
+    const bounds = nodes.reduce(
+      (acc, node) => {
+        acc.minX = Math.min(acc.minX, node.position.x);
+        acc.minY = Math.min(acc.minY, node.position.y);
+        acc.maxX = Math.max(acc.maxX, node.position.x + 300); // 300px is max node width
+        acc.maxY = Math.max(acc.maxY, node.position.y + 100); // Approximate node height
+        return acc;
+      },
+      { minX: Infinity, minY: Infinity, maxX: -Infinity, maxY: -Infinity }
+    );
+
+    // Add margins
+    const margin = 50;
+    bounds.minX -= margin;
+    bounds.minY -= margin;
+    bounds.maxX += margin;
+    bounds.maxY += margin;
+
+    // Calculate dimensions
+    const width = bounds.maxX - bounds.minX;
+    const height = bounds.maxY - bounds.minY;
+
+    // Center the viewport on the mindmap
+    const centerX = bounds.minX + width / 2;
+    const centerY = bounds.minY + height / 2;
+    setCenter(centerX, centerY, { zoom: 1 });
+
+    // Wait for the viewport to update
+    setTimeout(() => {
+      const flowElement = document.querySelector('.react-flow__viewport');
+      if (!flowElement) return;
+
+      toPng(flowElement, {
+        quality: 1,
+        width: width,
+        height: height,
+        backgroundColor: '#ffffff',
+        style: {
+          transform: 'none', // Remove any transformations
+        },
+        filter: node => {
+          // Only include the mindmap elements, exclude controls and background
+          return (
+            !node.classList?.contains('react-flow__minimap') &&
+            !node.classList?.contains('react-flow__controls') &&
+            !node.classList?.contains('react-flow__background')
+          );
+        },
       })
-      .catch(error => {
-        console.error('Error exporting image:', error);
-      });
-  }, [mindMap.title]);
+        .then(dataUrl => {
+          const link = document.createElement('a');
+          link.href = dataUrl;
+          link.download = `${mindMap.title
+            .toLowerCase()
+            .replace(/\s+/g, '-')}-mindmap.png`;
+          link.click();
+
+          // Reset the view
+          fitView({ padding: 0.2 });
+        })
+        .catch(error => {
+          console.error('Error exporting image:', error);
+          // Reset the view even if export fails
+          fitView({ padding: 0.2 });
+        });
+    }, 100); // Wait for the viewport to update
+  }, [getNodes, getEdges, mindMap.title, setCenter, fitView]);
 
   const handleImport = useCallback(
     event => {
