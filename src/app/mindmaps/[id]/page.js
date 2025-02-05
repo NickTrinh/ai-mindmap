@@ -2,7 +2,7 @@
 import { useState, useEffect } from 'react';
 import { useParams } from 'next/navigation';
 import Link from 'next/link';
-import MindMapVisualization from '@/app/components/MindMapVisualization';
+import MindMapVisualization from '@/app/components/mindmap/MindMapVisualization';
 import { ReactFlowProvider } from 'reactflow';
 
 export default function MindMap() {
