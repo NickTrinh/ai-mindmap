@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import { NextResponse } from 'next/server';
 
 export default function Home() {
   const [messages, setMessages] = useState([]);
@@ -25,18 +26,6 @@ export default function Home() {
       }
     } catch (error) {
       console.error('Failed to fetch flashcard sets:', error);
-    }
-  }
-
-  async function fetchMindMaps() {
-    try {
-      const res = await fetch('/api/mindmaps');
-      if (res.ok) {
-        const data = await res.json();
-        setMindMaps(data);
-      }
-    } catch (error) {
-      console.error('Failed to fetch mind maps:', error);
     }
   }
 
@@ -87,6 +76,8 @@ export default function Home() {
       if (data.mindMap) {
         fetchMindMaps();
       }
+
+      return NextResponse.json(data);
     } catch (error) {
       console.error(error);
       setMessages(prev => [
@@ -96,6 +87,11 @@ export default function Home() {
           content: 'Sorry, I encountered an error. Please try again.',
         },
       ]);
+
+      return NextResponse.json(
+        { error: 'Sorry, I encountered an error. Please try again.' },
+        { status: 500 }
+      );
     } finally {
       setIsLoading(false);
     }
