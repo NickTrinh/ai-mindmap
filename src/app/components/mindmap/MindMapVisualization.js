@@ -19,18 +19,20 @@ import dagre from '@dagrejs/dagre';
 import LayoutControls from './LayoutControls';
 import MindMapActions from './MindMapActions';
 
-// Custom node components with updated colors
+// Custom node components with text wrapping
 const nodeTypes = {
   mindmap: ({ data }) => (
-    <div className="px-4 py-2 shadow-md rounded-lg border border-emerald-200 bg-white">
-      <div className="text-sm font-medium text-emerald-800">{data.label}</div>
+    <div className="px-4 py-2 shadow-md rounded-lg border border-emerald-200 bg-white max-w-[300px]">
+      <div className="text-sm font-medium text-emerald-800 whitespace-pre-wrap break-words">
+        {data.label}
+      </div>
       <Handle type="target" position={Position.Left} />
       <Handle type="source" position={Position.Right} />
     </div>
   ),
   diamond: ({ data }) => (
-    <div className="px-4 py-2 shadow-md rounded-lg border border-rose-200 bg-white rotate-45">
-      <div className="-rotate-45 text-sm font-medium text-rose-800">
+    <div className="px-4 py-2 shadow-md rounded-lg border border-rose-200 bg-white rotate-45 max-w-[300px]">
+      <div className="-rotate-45 text-sm font-medium text-rose-800 whitespace-pre-wrap break-words">
         {data.label}
       </div>
       <Handle type="target" position={Position.Left} />
@@ -38,16 +40,18 @@ const nodeTypes = {
     </div>
   ),
   process: ({ data }) => (
-    <div className="px-6 py-3 shadow-md rounded-lg border border-indigo-200 bg-white">
-      <div className="text-base font-semibold text-indigo-800 text-center">
+    <div className="px-6 py-3 shadow-md rounded-lg border border-indigo-200 bg-white max-w-[300px]">
+      <div className="text-base font-semibold text-indigo-800 text-center whitespace-pre-wrap break-words">
         {data.label}
       </div>
       <Handle type="source" position={Position.Right} />
     </div>
   ),
   category: ({ data }) => (
-    <div className="px-4 py-2 shadow-md rounded-lg border border-amber-200 bg-white">
-      <div className="text-sm font-medium text-amber-800">{data.label}</div>
+    <div className="px-4 py-2 shadow-md rounded-lg border border-amber-200 bg-white max-w-[300px]">
+      <div className="text-sm font-medium text-amber-800 whitespace-pre-wrap break-words">
+        {data.label}
+      </div>
       <Handle type="target" position={Position.Left} />
       <Handle type="source" position={Position.Right} />
     </div>
