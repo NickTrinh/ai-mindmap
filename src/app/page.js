@@ -14,7 +14,6 @@ export default function Home() {
   useEffect(() => {
     fetchFlashcardSets();
     fetchMindMaps();
-    fetchMindMaps();
   }, []);
 
   async function fetchFlashcardSets() {
@@ -69,9 +68,6 @@ export default function Home() {
 
       if (data.flashcardSet) {
         fetchFlashcardSets();
-      }
-      if (data.mindMap) {
-        fetchMindMaps();
       }
       if (data.mindMap) {
         fetchMindMaps();

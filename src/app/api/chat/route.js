@@ -3,88 +3,11 @@ import { Anthropic } from '@anthropic-ai/sdk';
 import connectDB from '../../lib/mongoose';
 import FlashcardSet from '../../models/FlashcardSet';
 import MindMap from '../../models/MindMap';
+import { SYSTEM_PROMPT, API_TOOLS } from '../../constants';
 
 const anthropic = new Anthropic({
   apiKey: process.env.ANTHROPIC_API_KEY,
 });
-
-const SYSTEM_PROMPT = `You are an AI tutor helping students learn.
-When a user asks to create flashcards, you MUST use the create_flashcard_set tool - do not respond with text.
-When a user asks to create a mind map, you MUST use the create_mind_map tool - do not respond with text.
-The create_flashcard_set and create_mind_map tools are the only ways to create their respective resources.
-For all other questions, respond normally.
-Do not hallucinate or make things up.`;
-
-const tools = [
-  {
-    name: 'create_flashcard_set',
-    description:
-      'REQUIRED tool for creating flashcard sets. You MUST use this tool whenever the user wants to create, generate, or make flashcards. Do not respond with text for flashcard creation requests.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        title: {
-          type: 'string',
-          description: 'Title of the flashcard set.',
-        },
-        cards: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              term: {
-                type: 'string',
-                description: 'Questions on the topic.',
-              },
-              definition: {
-                type: 'string',
-                description: 'Answer to the question.',
-              },
-            },
-            required: ['term', 'definition'],
-          },
-        },
-      },
-      required: ['title', 'cards'],
-    },
-  },
-  {
-    name: 'create_mind_map',
-    description:
-      'REQUIRED tool for creating mind maps. You MUST use this tool whenever the user wants to create, generate, or make a mind map. Do not respond with text for mind map creation requests.',
-    input_schema: {
-      type: 'object',
-      properties: {
-        title: {
-          type: 'string',
-          description: 'Title of the mind map (central node).',
-        },
-        nodes: {
-          type: 'array',
-          items: {
-            type: 'object',
-            properties: {
-              id: {
-                type: 'string',
-                description: 'Unique identifier for the node',
-              },
-              content: {
-                type: 'string',
-                description: 'Content of the node',
-              },
-              parentId: {
-                type: 'string',
-                description: 'ID of the parent node. null for root node.',
-              },
-            },
-            required: ['id', 'content'],
-          },
-        },
-      },
-      required: ['title', 'nodes'],
-    },
-  },
-];
 
 async function saveFlashcardSet(data) {
   try {
@@ -135,7 +58,7 @@ export async function POST(req) {
         role: msg.role,
         content: msg.content,
       })),
-      tools: tools,
+      tools: API_TOOLS,
     });
 
     if (response.stop_reason === 'tool_use') {
