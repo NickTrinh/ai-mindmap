@@ -466,11 +466,16 @@ export default function MindMapVisualization({ mindMap }) {
           }}
           onNodeContextMenu={onNodeContextMenu}
           onClick={event => {
+            // Close context menu when clicking anywhere in the canvas
+            setContextMenu(null);
+            // Only clear selection and node detail when clicking the background
             if (event.target === event.currentTarget) {
-              setContextMenu(null);
               setShowNodeDetail(false);
               setSelectedNode(null);
             }
+          }}
+          onPaneClick={() => {
+            setContextMenu(null);
           }}
         >
           <Background
@@ -487,8 +492,8 @@ export default function MindMapVisualization({ mindMap }) {
             style={{ top: contextMenu.y, left: contextMenu.x }}
           >
             <button
-              className="block w-full px-4 py-2 text-left hover:bg-gray-50"
-              onClick={() => {
+              className="block w-full px-4 py-2 text-left hover:bg-gray-50 text-purple-500"
+              onClick={async () => {
                 setShowNodeDetail(true);
                 setSelectedNode(contextMenu.node);
                 setContextMenu(null);
@@ -497,15 +502,18 @@ export default function MindMapVisualization({ mindMap }) {
               Edit Node
             </button>
             <button
-              className="block w-full px-4 py-2 text-left hover:bg-gray-50"
-              onClick={() => handleAddNode(contextMenu.node.id)}
+              className="block w-full px-4 py-2 text-left hover:bg-gray-50 text-blue-500"
+              onClick={async () => {
+                await handleAddNode(contextMenu.node.id);
+                setContextMenu(null);
+              }}
             >
               Add Child Node
             </button>
             <button
               className="block w-full px-4 py-2 text-left hover:bg-gray-50 text-red-600"
-              onClick={() => {
-                handleDeleteNode(contextMenu.node.id);
+              onClick={async () => {
+                await handleDeleteNode(contextMenu.node.id);
                 setContextMenu(null);
               }}
             >
