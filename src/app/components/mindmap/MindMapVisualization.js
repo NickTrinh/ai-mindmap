@@ -1,59 +1,36 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import ReactFlow, {
-  MiniMap,
-  Controls,
   Background,
   useNodesState,
   useEdgesState,
   addEdge,
   Position,
-  MarkerType,
   useReactFlow,
   Handle,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import MindMapSidebar from './MindMapSidebar';
 import NodeDetailPanel from './NodeDetailPanel';
 import dagre from '@dagrejs/dagre';
-import LayoutControls from './LayoutControls';
 import MindMapActions from './MindMapActions';
 
 // Custom node components with text wrapping
 const nodeTypes = {
   mindmap: ({ data }) => (
-    <div className="px-4 py-2 shadow-md rounded-lg border border-emerald-200 bg-white max-w-[300px]">
-      <div className="text-sm font-medium text-emerald-800 whitespace-pre-wrap break-words">
+    <div className="px-4 py-2 shadow-md rounded-lg border border-gray-300 bg-white max-w-[300px]">
+      <div className="text-sm font-medium text-gray-800 whitespace-pre-wrap break-words">
         {data.label}
       </div>
-      <Handle type="target" position={Position.Left} />
-      <Handle type="source" position={Position.Right} />
-    </div>
-  ),
-  diamond: ({ data }) => (
-    <div className="px-4 py-2 shadow-md rounded-lg border border-rose-200 bg-white rotate-45 max-w-[300px]">
-      <div className="-rotate-45 text-sm font-medium text-rose-800 whitespace-pre-wrap break-words">
-        {data.label}
-      </div>
-      <Handle type="target" position={Position.Left} />
-      <Handle type="source" position={Position.Right} />
-    </div>
-  ),
-  process: ({ data }) => (
-    <div className="px-6 py-3 shadow-md rounded-lg border border-indigo-200 bg-white max-w-[300px]">
-      <div className="text-base font-semibold text-indigo-800 text-center whitespace-pre-wrap break-words">
-        {data.label}
-      </div>
-      <Handle type="source" position={Position.Right} />
-    </div>
-  ),
-  category: ({ data }) => (
-    <div className="px-4 py-2 shadow-md rounded-lg border border-amber-200 bg-white max-w-[300px]">
-      <div className="text-sm font-medium text-amber-800 whitespace-pre-wrap break-words">
-        {data.label}
-      </div>
-      <Handle type="target" position={Position.Left} />
-      <Handle type="source" position={Position.Right} />
+      <Handle
+        type="source"
+        position={Position.Right}
+        style={{ visibility: 'hidden', right: '50%' }}
+      />
+      <Handle
+        type="target"
+        position={Position.Left}
+        style={{ visibility: 'hidden', left: '50%' }}
+      />
     </div>
   ),
 };
@@ -64,35 +41,8 @@ export default function MindMapVisualization({ mindMap }) {
   const [contextMenu, setContextMenu] = useState(null);
   const [showNodeDetail, setShowNodeDetail] = useState(false);
   const [selectedLayout, setSelectedLayout] = useState('dagre-lr');
-
-  const getNodeType = node => {
-    // If node has an explicit type, use it
-    if (node.nodeType) {
-      return node.nodeType;
-    }
-
-    // Protocol or question nodes become diamonds
-    if (
-      node.content.toLowerCase().includes('protocol') ||
-      node.content.includes('?') ||
-      node.content.toLowerCase().includes('decision')
-    ) {
-      return 'diamond';
-    }
-
-    // Root nodes become process nodes
-    if (!node.parentId) {
-      return 'process';
-    }
-
-    // Nodes with children become category nodes
-    if (mindMap.nodes.some(n => n.parentId === node.id)) {
-      return 'category';
-    }
-
-    // Default to mindmap type
-    return 'mindmap';
-  };
+  const [initialLayoutApplied, setInitialLayoutApplied] = useState(false);
+  const [selectedEdgeType, setSelectedEdgeType] = useState('smoothstep');
 
   const transformNodesToReactFlow = useCallback(mindMap => {
     const horizontalSpacing = 250;
@@ -130,11 +80,9 @@ export default function MindMapVisualization({ mindMap }) {
 
       return {
         id: node.id,
-        type: getNodeType(node),
+        type: 'mindmap',
         position: node.position || { x: level * horizontalSpacing, y },
         data: { label: node.content },
-        sourcePosition: Position.Right,
-        targetPosition: Position.Left,
       };
     });
   }, []);
@@ -146,41 +94,37 @@ export default function MindMapVisualization({ mindMap }) {
       id: `${node.parentId}-${node.id}`,
       source: node.parentId,
       target: node.id,
-      type: 'simplebezier',
+      type: 'smoothstep',
+      animated: false,
       style: {
         stroke: '#000000',
         strokeWidth: 2,
-        opacity: 1,
-        zIndex: 0,
       },
     }));
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
-  const onNodeDragStop = useCallback(
-    (event, node) => {
-      // Update node position in the database
-      fetch(`/api/mindmaps/${mindMap._id}/update`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nodeId: node.id, position: node.position }),
-      });
-    },
-    [mindMap._id]
-  );
-
   const onConnect = useCallback(
     params => {
-      // Create new edge in the database
+      const edgeParams = {
+        ...params,
+        type: selectedEdgeType,
+        animated: false,
+        style: {
+          stroke: '#000000',
+          strokeWidth: 2,
+        },
+      };
+
       fetch(`/api/mindmaps/${mindMap._id}/update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source: params.source, target: params.target }),
       });
-      setEdges(eds => addEdge(params, eds));
+      setEdges(eds => addEdge(edgeParams, eds));
     },
-    [mindMap._id, setEdges]
+    [mindMap._id, setEdges, selectedEdgeType]
   );
 
   const handleAddNode = useCallback(
@@ -196,7 +140,7 @@ export default function MindMapVisualization({ mindMap }) {
       const position = parentNode?.position || { x: 0, y: 0 };
       const newPosition = {
         x: position.x + 150,
-        y: position.y + (Math.random() - 0.5) * 100, // Add some random vertical offset
+        y: position.y + (Math.random() - 0.5) * 100,
       };
 
       fetch(`/api/mindmaps/${mindMap._id}/update`, {
@@ -231,7 +175,12 @@ export default function MindMapVisualization({ mindMap }) {
               id: `${parentId}-${newNode.id}`,
               source: parentId,
               target: newNode.id,
-              type: 'simplebezier',
+              type: selectedEdgeType,
+              animated: false,
+              style: {
+                stroke: '#000000',
+                strokeWidth: 2,
+              },
             },
           ]);
         })
@@ -239,7 +188,7 @@ export default function MindMapVisualization({ mindMap }) {
           console.error('Error creating node:', error);
         });
     },
-    [mindMap._id, nodes, setNodes, setEdges]
+    [nodes, mindMap._id, setNodes, setEdges, selectedEdgeType]
   );
 
   const handleDeleteNode = useCallback(
@@ -260,10 +209,6 @@ export default function MindMapVisualization({ mindMap }) {
     [mindMap._id, setNodes, setEdges]
   );
 
-  const onNodeClick = useCallback((event, node) => {
-    setSelectedNode(node);
-  }, []);
-
   // Add context menu handler
   const onNodeContextMenu = useCallback((event, node) => {
     event.preventDefault();
@@ -283,7 +228,6 @@ export default function MindMapVisualization({ mindMap }) {
         body: JSON.stringify({
           nodeId: updatedNode.id,
           content: updatedNode.data.label,
-          nodeType: updatedNode.type,
         }),
       });
 
@@ -294,7 +238,6 @@ export default function MindMapVisualization({ mindMap }) {
               ? {
                   ...node,
                   data: { ...node.data, label: updatedNode.data.label },
-                  type: updatedNode.type,
                 }
               : node
           )
@@ -316,13 +259,22 @@ export default function MindMapVisualization({ mindMap }) {
       }
 
       if (layoutType.startsWith('dagre')) {
-        const direction = layoutType === 'dagre-lr' ? 'LR' : 'TB';
+        const direction =
+          layoutType === 'dagre-lr'
+            ? 'LR'
+            : layoutType === 'dagre-tb'
+            ? 'TB'
+            : layoutType === 'dagre-bt'
+            ? 'BT'
+            : 'RL'; // dagre-rl
+
         const g = new dagre.graphlib.Graph();
         g.setGraph({
           rankdir: direction,
           nodesep: 80,
           ranksep: 120,
           edgesep: 40,
+          ranker: 'network-simplex', // 'tight-tree' or 'longest-path' are other options
         });
         g.setDefaultEdgeLabel(() => ({}));
 
@@ -349,6 +301,22 @@ export default function MindMapVisualization({ mindMap }) {
 
         setNodes(newNodes);
       }
+
+      if (layoutType === 'circular') {
+        const center = { x: 500, y: 500 };
+        const radius = 300;
+        const angleStep = (2 * Math.PI) / nodes.length;
+
+        const newNodes = nodes.map((node, index) => ({
+          ...node,
+          position: {
+            x: center.x + radius * Math.cos(index * angleStep),
+            y: center.y + radius * Math.sin(index * angleStep),
+          },
+        }));
+
+        setNodes(newNodes);
+      }
     },
     [nodes, edges, mindMap, setNodes, transformNodesToReactFlow]
   );
@@ -361,72 +329,85 @@ export default function MindMapVisualization({ mindMap }) {
     [applyLayout]
   );
 
+  const handleEdgeTypeChange = useCallback(
+    edgeType => {
+      setSelectedEdgeType(edgeType);
+      // Update all existing edges to new type
+      setEdges(eds =>
+        eds.map(edge => ({
+          ...edge,
+          type: edgeType,
+        }))
+      );
+    },
+    [setEdges]
+  );
+
   useEffect(() => {
-    if (reactFlowInstance) {
+    if (reactFlowInstance && !initialLayoutApplied) {
       setTimeout(() => {
         reactFlowInstance.fitView({ padding: 0.2 });
+        applyLayout('dagre-lr');
+        setInitialLayoutApplied(true);
       }, 100);
     }
-  }, [reactFlowInstance]);
+  }, [reactFlowInstance, applyLayout, initialLayoutApplied]);
 
   return (
     <div className="w-full h-full flex">
       <div className="flex-1 relative bg-white">
-        <div className="absolute top-4 right-4 z-10"></div>
-        <ReactFlow
-          nodes={nodes}
-          edges={edges}
-          onNodesChange={onNodesChange}
-          onEdgesChange={onEdgesChange}
-          onConnect={onConnect}
-          nodeTypes={nodeTypes}
-          fitView
-          onNodeClick={(event, node) => {
-            setContextMenu(null);
-            setShowNodeDetail(false);
-            setSelectedNode(node);
-          }}
-          onNodeContextMenu={onNodeContextMenu}
-          onClick={event => {
-            if (event.target === event.currentTarget) {
-              setContextMenu(null);
-              setShowNodeDetail(false);
-              setSelectedNode(null);
-            }
-          }}
-        >
-          <Background
-            color="#64748b"
-            gap={16}
-            size={1}
-            style={{ backgroundColor: '#ffffff' }}
-          />
-        </ReactFlow>
-      </div>
-
-      <div className="w-64 border-l border-gray-200 p-4 bg-white">
-        <div className="space-y-4">
+        <div className="absolute top-4 right-4 z-10 bg-white dark:bg-gray-800 rounded-lg shadow-lg p-4 space-y-4">
           <div className="space-y-2">
-            <h3 className="font-medium text-gray-900">Layout</h3>
+            <h3 className="font-medium text-gray-900 dark:text-gray-100">
+              Layout
+            </h3>
             <select
-              defaultValue="dagre-lr"
+              value={selectedLayout}
               onChange={e => handleLayoutChange(e.target.value)}
-              className="block w-full px-3 py-2 text-sm rounded-md border border-gray-300 text-black focus:outline-none focus:ring-2 focus:ring-blue-500"
+              className="block w-full px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 text-black dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
             >
-              <option value="dagre-lr">Left to Right</option>
-              <option value="dagre-tb">Top to Bottom</option>
+              <optgroup label="Hierarchical">
+                <option value="dagre-lr">Left to Right</option>
+                <option value="dagre-rl">Right to Left</option>
+                <option value="dagre-tb">Top to Bottom</option>
+                <option value="dagre-bt">Bottom to Top</option>
+              </optgroup>
+              <optgroup label="Other">
+                <option value="circular">Circular</option>
+                <option value="default">Default</option>
+              </optgroup>
+            </select>
+          </div>
+
+          <div className="space-y-2">
+            <h3 className="font-medium text-gray-900 dark:text-gray-100">
+              Edge Type
+            </h3>
+            <select
+              value={selectedEdgeType}
+              onChange={e => handleEdgeTypeChange(e.target.value)}
+              className="block w-full px-3 py-2 text-sm rounded-md border border-gray-300 dark:border-gray-600 text-black dark:text-white dark:bg-gray-700 focus:outline-none focus:ring-2 focus:ring-blue-500"
+            >
+              <option value="default">Default (Bezier)</option>
+              <option value="straight">Straight</option>
+              <option value="step">Step</option>
+              <option value="smoothstep">Smooth Step</option>
+              <option value="simplebezier">Simple Bezier</option>
             </select>
           </div>
 
           <div className="space-y-2 pt-2 border-t border-gray-200">
-            <h3 className="font-medium text-gray-900">Import/Export</h3>
+            <h3 className="font-medium text-gray-900 dark:text-gray-100">
+              Import/Export
+            </h3>
             <MindMapActions mindMap={mindMap} />
           </div>
 
           {selectedNode && (
             <div className="space-y-2 pt-2 border-t border-gray-200">
-              <h3 className="font-medium text-gray-900">Selected Node</h3>
-              <p className="text-sm text-gray-600">{selectedNode.data.label}</p>
+              <h3 className="font-medium text-gray-900 dark:text-gray-100">
+                Selected Node
+              </h3>
               <div className="flex flex-col gap-2">
                 <button
                   onClick={() => handleAddNode(selectedNode.id)}
@@ -455,48 +436,86 @@ export default function MindMapVisualization({ mindMap }) {
             </div>
           )}
         </div>
-      </div>
 
-      {contextMenu && (
-        <div
-          className="fixed z-50 bg-white shadow-lg rounded-lg py-2 border border-gray-200"
-          style={{ top: contextMenu.y, left: contextMenu.x }}
+        <ReactFlow
+          nodes={nodes}
+          edges={edges}
+          onNodesChange={onNodesChange}
+          onEdgesChange={onEdgesChange}
+          onConnect={onConnect}
+          nodeTypes={nodeTypes}
+          fitView
+          onNodeClick={(event, node) => {
+            setContextMenu(null);
+            setShowNodeDetail(false);
+            setSelectedNode(node);
+          }}
+          onNodeContextMenu={onNodeContextMenu}
+          onClick={event => {
+            // Close context menu when clicking anywhere in the canvas
+            setContextMenu(null);
+            // Only clear selection and node detail when clicking the background
+            if (event.target === event.currentTarget) {
+              setShowNodeDetail(false);
+              setSelectedNode(null);
+            }
+          }}
+          onPaneClick={() => {
+            setContextMenu(null);
+          }}
         >
-          <button
-            className="block w-full px-4 py-2 text-left hover:bg-gray-50"
-            onClick={() => {
-              setShowNodeDetail(true);
-              setSelectedNode(contextMenu.node);
-              setContextMenu(null);
-            }}
-          >
-            Edit Node
-          </button>
-          <button
-            className="block w-full px-4 py-2 text-left hover:bg-gray-50"
-            onClick={() => handleAddNode(contextMenu.node.id)}
-          >
-            Add Child Node
-          </button>
-          <button
-            className="block w-full px-4 py-2 text-left hover:bg-gray-50 text-red-600"
-            onClick={() => {
-              handleDeleteNode(contextMenu.node.id);
-              setContextMenu(null);
-            }}
-          >
-            Delete Node
-          </button>
-        </div>
-      )}
+          <Background
+            color="#64748b"
+            gap={16}
+            size={1}
+            style={{ backgroundColor: '#ffffff' }}
+          />
+        </ReactFlow>
 
-      {showNodeDetail && selectedNode && (
-        <NodeDetailPanel
-          node={selectedNode}
-          onUpdate={handleNodeUpdate}
-          onClose={() => setShowNodeDetail(false)}
-        />
-      )}
+        {contextMenu && (
+          <div
+            className="fixed z-50 bg-white shadow-lg rounded-lg py-2 border border-gray-200"
+            style={{ top: contextMenu.y, left: contextMenu.x }}
+          >
+            <button
+              className="block w-full px-4 py-2 text-left hover:bg-gray-50 text-purple-500"
+              onClick={async () => {
+                setShowNodeDetail(true);
+                setSelectedNode(contextMenu.node);
+                setContextMenu(null);
+              }}
+            >
+              Edit Node
+            </button>
+            <button
+              className="block w-full px-4 py-2 text-left hover:bg-gray-50 text-blue-500"
+              onClick={async () => {
+                await handleAddNode(contextMenu.node.id);
+                setContextMenu(null);
+              }}
+            >
+              Add Child Node
+            </button>
+            <button
+              className="block w-full px-4 py-2 text-left hover:bg-gray-50 text-red-600"
+              onClick={async () => {
+                await handleDeleteNode(contextMenu.node.id);
+                setContextMenu(null);
+              }}
+            >
+              Delete Node
+            </button>
+          </div>
+        )}
+
+        {showNodeDetail && selectedNode && (
+          <NodeDetailPanel
+            node={selectedNode}
+            onUpdate={handleNodeUpdate}
+            onClose={() => setShowNodeDetail(false)}
+          />
+        )}
+      </div>
     </div>
   );
 }
