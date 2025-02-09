@@ -1,5 +1,6 @@
-import connectDB from '../../lib/mongoose';
-import FlashcardSet from '../../models/FlashcardSet';
+import { NextResponse } from 'next/server';
+import connectDB from '@/app/lib/mongoose';
+import FlashcardSet from '@/app/models/FlashcardSet';
 
 export async function GET() {
   try {
@@ -9,7 +10,7 @@ export async function GET() {
       .select('title cards')
       .sort('-createdAt');
 
-    return Response.json(
+    return NextResponse.json(
       flashcardSets.map(set => ({
         id: set._id.toString(),
         title: set.title,
@@ -18,7 +19,7 @@ export async function GET() {
     );
   } catch (error) {
     console.error('Error fetching flashcard sets:', error);
-    return Response.json(
+    return NextResponse.json(
       { error: 'Failed to fetch flashcard sets' },
       { status: 500 }
     );

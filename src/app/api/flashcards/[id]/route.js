@@ -1,24 +1,25 @@
-import connectDB from '../../../lib/mongoose';
-import FlashcardSet from '../../../models/FlashcardSet';
+import { NextResponse } from 'next/server';
+import connectDB from '@/app/lib/mongoose';
+import FlashcardSet from '@/app/models/FlashcardSet';
 
 export async function GET(request, { params }) {
   try {
     await connectDB();
-    const { id } = await params;
+    const { id } = params;
 
     const set = await FlashcardSet.findById(id);
 
     if (!set) {
-      return Response.json(
+      return NextResponse.json(
         { error: 'Flashcard set not found' },
         { status: 404 }
       );
     }
 
-    return Response.json(set);
+    return NextResponse.json(set);
   } catch (error) {
     console.error('Error fetching flashcard set:', error);
-    return Response.json(
+    return NextResponse.json(
       { error: 'Failed to fetch flashcard set' },
       { status: 500 }
     );
@@ -28,21 +29,21 @@ export async function GET(request, { params }) {
 export async function DELETE(request, { params }) {
   try {
     await connectDB();
-    const { id } = await params;
-    
+    const { id } = params;
+
     const result = await FlashcardSet.findByIdAndDelete(id);
 
     if (!result) {
-      return Response.json(
+      return NextResponse.json(
         { error: 'Flashcard set not found' },
         { status: 404 }
       );
     }
 
-    return Response.json({ message: 'Flashcard set deleted' });
+    return NextResponse.json({ message: 'Flashcard set deleted' });
   } catch (error) {
     console.error('Error deleting flashcard set:', error);
-    return Response.json(
+    return NextResponse.json(
       { error: 'Failed to delete flashcard set' },
       { status: 500 }
     );
