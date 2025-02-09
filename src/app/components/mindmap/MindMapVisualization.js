@@ -25,8 +25,16 @@ const nodeTypes = {
       <div className="text-sm font-medium text-gray-800 whitespace-pre-wrap break-words">
         {data.label}
       </div>
-      <Handle type="target" position={Position.Left} />
-      <Handle type="source" position={Position.Right} />
+      <Handle
+        type="source"
+        position={Position.Right}
+        style={{ visibility: 'hidden', right: '50%' }}
+      />
+      <Handle
+        type="target"
+        position={Position.Left}
+        style={{ visibility: 'hidden', left: '50%' }}
+      />
     </div>
   ),
 };
@@ -79,8 +87,6 @@ export default function MindMapVisualization({ mindMap }) {
         type: 'mindmap',
         position: node.position || { x: level * horizontalSpacing, y },
         data: { label: node.content },
-        sourcePosition: Position.Right,
-        targetPosition: Position.Left,
       };
     });
   }, []);
