@@ -1,14 +1,15 @@
 import { NextResponse } from 'next/server';
-import { connectToDatabase } from '@/lib/mongodb';
+import connectDB from '@/app/lib/mongoose';
+import MindMap from '@/app/models/MindMap';
 
 export async function POST(request, { params }) {
   try {
-    const { db } = await connectToDatabase();
+    await connectDB();
     const { id } = params;
     const importData = await request.json();
 
-    await db.collection('mindmaps').updateOne(
-      { _id: id },
+    const mindMap = await MindMap.findByIdAndUpdate(
+      id,
       {
         $set: {
           title: importData.title,
@@ -20,10 +21,18 @@ export async function POST(request, { params }) {
             position: node.position,
           })),
         },
-      }
+      },
+      { new: true }
     );
 
-    return NextResponse.json({ success: true });
+    if (!mindMap) {
+      return NextResponse.json(
+        { error: 'Mind map not found' },
+        { status: 404 }
+      );
+    }
+
+    return NextResponse.json({ success: true, mindMap });
   } catch (error) {
     console.error('Error importing mindmap:', error);
     return NextResponse.json(

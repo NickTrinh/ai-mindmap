@@ -66,25 +66,27 @@ export default function MindMapVisualization({ mindMap }) {
   const [selectedLayout, setSelectedLayout] = useState('dagre-lr');
 
   const getNodeType = node => {
+    // If node has an explicit type, use it
+    if (node.nodeType) {
+      return node.nodeType;
+    }
+
     // Protocol or question nodes become diamonds
     if (
       node.content.toLowerCase().includes('protocol') ||
       node.content.includes('?') ||
-      node.nodeType === 'diamond'
+      node.content.toLowerCase().includes('decision')
     ) {
       return 'diamond';
     }
 
     // Root nodes become process nodes
-    if (node.parentId === null || node.nodeType === 'process') {
+    if (!node.parentId) {
       return 'process';
     }
 
     // Nodes with children become category nodes
-    if (
-      mindMap.nodes.some(n => n.parentId === node.id) ||
-      node.nodeType === 'category'
-    ) {
+    if (mindMap.nodes.some(n => n.parentId === node.id)) {
       return 'category';
     }
 
@@ -104,6 +106,7 @@ export default function MindMapVisualization({ mindMap }) {
       while (currentNode.parentId) {
         level++;
         currentNode = mindMap.nodes.find(n => n.id === currentNode.parentId);
+        if (!currentNode) break; // Handle case where parent node doesn't exist
       }
       if (!levels.has(level)) levels.set(level, []);
       levels.get(level).push(node);
@@ -115,27 +118,26 @@ export default function MindMapVisualization({ mindMap }) {
       while (currentNode.parentId) {
         level++;
         currentNode = mindMap.nodes.find(n => n.id === currentNode.parentId);
+        if (!currentNode) break; // Handle case where parent node doesn't exist
       }
 
-      const nodesAtLevel = levels.get(level);
+      const nodesAtLevel = levels.get(level) || [];
       const indexAtLevel = nodesAtLevel.indexOf(node);
       const y =
-        (indexAtLevel - (nodesAtLevel.length - 1) / 2) * verticalSpacing;
+        indexAtLevel >= 0
+          ? (indexAtLevel - (nodesAtLevel.length - 1) / 2) * verticalSpacing
+          : 0;
 
       return {
         id: node.id,
         type: getNodeType(node),
-        position: { x: level * horizontalSpacing, y },
+        position: node.position || { x: level * horizontalSpacing, y },
         data: { label: node.content },
         sourcePosition: Position.Right,
         targetPosition: Position.Left,
-        style: {
-          opacity: 1,
-          zIndex: 1,
-        },
       };
     });
-  });
+  }, []);
 
   const initialNodes = transformNodesToReactFlow(mindMap);
   const initialEdges = mindMap.nodes
@@ -187,36 +189,55 @@ export default function MindMapVisualization({ mindMap }) {
         id: `node-${Date.now()}`,
         content: 'New Node',
         parentId: parentId,
+        nodeType: 'mindmap',
+      };
+
+      const parentNode = nodes.find(n => n.id === parentId);
+      const position = parentNode?.position || { x: 0, y: 0 };
+      const newPosition = {
+        x: position.x + 150,
+        y: position.y + (Math.random() - 0.5) * 100, // Add some random vertical offset
       };
 
       fetch(`/api/mindmaps/${mindMap._id}/update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ newNode }),
-      }).then(() => {
-        const position = nodes.find(n => n.id === parentId)?.position || {
-          x: 0,
-          y: 0,
-        };
-        setNodes(nds => [
-          ...nds,
-          {
-            id: newNode.id,
-            type: 'mindmap',
-            position: { x: position.x + 150, y: position.y },
-            data: { label: newNode.content },
+        body: JSON.stringify({
+          newNode: {
+            ...newNode,
+            position: newPosition,
           },
-        ]);
-        setEdges(eds => [
-          ...eds,
-          {
-            id: `${parentId}-${newNode.id}`,
-            source: parentId,
-            target: newNode.id,
-            type: 'simplebezier',
-          },
-        ]);
-      });
+        }),
+      })
+        .then(response => {
+          if (!response.ok) {
+            throw new Error('Failed to create node');
+          }
+          return response.json();
+        })
+        .then(() => {
+          setNodes(nds => [
+            ...nds,
+            {
+              id: newNode.id,
+              type: 'mindmap',
+              position: newPosition,
+              data: { label: newNode.content },
+            },
+          ]);
+          setEdges(eds => [
+            ...eds,
+            {
+              id: `${parentId}-${newNode.id}`,
+              source: parentId,
+              target: newNode.id,
+              type: 'simplebezier',
+            },
+          ]);
+        })
+        .catch(error => {
+          console.error('Error creating node:', error);
+        });
     },
     [mindMap._id, nodes, setNodes, setEdges]
   );
@@ -263,15 +284,24 @@ export default function MindMapVisualization({ mindMap }) {
           nodeId: updatedNode.id,
           content: updatedNode.data.label,
           nodeType: updatedNode.type,
-          style: updatedNode.style,
         }),
       });
 
       if (response.ok) {
         setNodes(nds =>
-          nds.map(node => (node.id === updatedNode.id ? updatedNode : node))
+          nds.map(node =>
+            node.id === updatedNode.id
+              ? {
+                  ...node,
+                  data: { ...node.data, label: updatedNode.data.label },
+                  type: updatedNode.type,
+                }
+              : node
+          )
         );
         setShowNodeDetail(false);
+      } else {
+        console.error('Failed to update node');
       }
     },
     [mindMap._id, setNodes]
