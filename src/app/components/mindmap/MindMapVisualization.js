@@ -64,6 +64,7 @@ export default function MindMapVisualization({ mindMap }) {
   const [contextMenu, setContextMenu] = useState(null);
   const [showNodeDetail, setShowNodeDetail] = useState(false);
   const [selectedLayout, setSelectedLayout] = useState('dagre-lr');
+  const [initialLayoutApplied, setInitialLayoutApplied] = useState(false);
 
   const getNodeType = node => {
     // If node has an explicit type, use it
@@ -146,12 +147,11 @@ export default function MindMapVisualization({ mindMap }) {
       id: `${node.parentId}-${node.id}`,
       source: node.parentId,
       target: node.id,
-      type: 'simplebezier',
+      type: 'smoothstep',
+      animated: false,
       style: {
         stroke: '#000000',
         strokeWidth: 2,
-        opacity: 1,
-        zIndex: 0,
       },
     }));
 
@@ -172,13 +172,22 @@ export default function MindMapVisualization({ mindMap }) {
 
   const onConnect = useCallback(
     params => {
-      // Create new edge in the database
+      const edgeParams = {
+        ...params,
+        type: 'smoothstep',
+        animated: false,
+        style: {
+          stroke: '#000000',
+          strokeWidth: 2,
+        },
+      };
+
       fetch(`/api/mindmaps/${mindMap._id}/update`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ source: params.source, target: params.target }),
       });
-      setEdges(eds => addEdge(params, eds));
+      setEdges(eds => addEdge(edgeParams, eds));
     },
     [mindMap._id, setEdges]
   );
@@ -196,7 +205,7 @@ export default function MindMapVisualization({ mindMap }) {
       const position = parentNode?.position || { x: 0, y: 0 };
       const newPosition = {
         x: position.x + 150,
-        y: position.y + (Math.random() - 0.5) * 100, // Add some random vertical offset
+        y: position.y + (Math.random() - 0.5) * 100,
       };
 
       fetch(`/api/mindmaps/${mindMap._id}/update`, {
@@ -231,7 +240,12 @@ export default function MindMapVisualization({ mindMap }) {
               id: `${parentId}-${newNode.id}`,
               source: parentId,
               target: newNode.id,
-              type: 'simplebezier',
+              type: 'smoothstep',
+              animated: false,
+              style: {
+                stroke: '#000000',
+                strokeWidth: 2,
+              },
             },
           ]);
         })
@@ -239,7 +253,7 @@ export default function MindMapVisualization({ mindMap }) {
           console.error('Error creating node:', error);
         });
     },
-    [mindMap._id, nodes, setNodes, setEdges]
+    [nodes, mindMap._id, setNodes, setEdges]
   );
 
   const handleDeleteNode = useCallback(
@@ -362,12 +376,14 @@ export default function MindMapVisualization({ mindMap }) {
   );
 
   useEffect(() => {
-    if (reactFlowInstance) {
+    if (reactFlowInstance && !initialLayoutApplied) {
       setTimeout(() => {
         reactFlowInstance.fitView({ padding: 0.2 });
+        applyLayout('dagre-lr');
+        setInitialLayoutApplied(true);
       }, 100);
     }
-  }, [reactFlowInstance]);
+  }, [reactFlowInstance, applyLayout, initialLayoutApplied]);
 
   return (
     <div className="w-full h-full flex">
