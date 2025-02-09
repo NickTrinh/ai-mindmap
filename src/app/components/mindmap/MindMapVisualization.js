@@ -1,19 +1,15 @@
 'use client';
 import { useCallback, useEffect, useState } from 'react';
 import ReactFlow, {
-  MiniMap,
-  Controls,
   Background,
   useNodesState,
   useEdgesState,
   addEdge,
   Position,
-  MarkerType,
   useReactFlow,
   Handle,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
-import MindMapSidebar from './MindMapSidebar';
 import NodeDetailPanel from './NodeDetailPanel';
 import dagre from '@dagrejs/dagre';
 import MindMapActions from './MindMapActions';
@@ -108,18 +104,6 @@ export default function MindMapVisualization({ mindMap }) {
 
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
-
-  const onNodeDragStop = useCallback(
-    (event, node) => {
-      // Update node position in the database
-      fetch(`/api/mindmaps/${mindMap._id}/update`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ nodeId: node.id, position: node.position }),
-      });
-    },
-    [mindMap._id]
-  );
 
   const onConnect = useCallback(
     params => {
@@ -224,10 +208,6 @@ export default function MindMapVisualization({ mindMap }) {
     },
     [mindMap._id, setNodes, setEdges]
   );
-
-  const onNodeClick = useCallback((event, node) => {
-    setSelectedNode(node);
-  }, []);
 
   // Add context menu handler
   const onNodeContextMenu = useCallback((event, node) => {
