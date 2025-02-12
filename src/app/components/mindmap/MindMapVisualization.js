@@ -8,6 +8,7 @@ import ReactFlow, {
   Position,
   useReactFlow,
   Handle,
+  Panel,
 } from 'reactflow';
 import 'reactflow/dist/style.css';
 import NodeDetailPanel from './NodeDetailPanel';
@@ -16,19 +17,29 @@ import MindMapActions from './MindMapActions';
 
 // Custom node components with text wrapping
 const nodeTypes = {
-  mindmap: ({ data }) => (
-    <div className="px-4 py-2 shadow-md rounded-lg border border-gray-300 bg-white max-w-[300px]">
+  mindmap: ({ data, selected }) => (
+    <div
+      className={`px-4 py-2 shadow-md rounded-lg border transition-all duration-200 max-w-[300px] 
+        ${
+          selected
+            ? 'border-blue-500 shadow-lg scale-105'
+            : 'border-gray-300 hover:border-gray-400'
+        }
+        bg-white`}
+    >
       <div className="text-sm font-medium text-gray-800 whitespace-pre-wrap break-words">
         {data.label}
       </div>
       <Handle
         type="source"
         position={Position.Right}
+        className="w-3 h-3 bg-blue-500"
         style={{ visibility: 'hidden', right: '50%' }}
       />
       <Handle
         type="target"
         position={Position.Left}
+        className="w-3 h-3 bg-blue-500"
         style={{ visibility: 'hidden', left: '50%' }}
       />
     </div>
@@ -43,6 +54,7 @@ export default function MindMapVisualization({ mindMap }) {
   const [selectedLayout, setSelectedLayout] = useState('dagre-lr');
   const [initialLayoutApplied, setInitialLayoutApplied] = useState(false);
   const [selectedEdgeType, setSelectedEdgeType] = useState('smoothstep');
+  const [connectingNodeId, setConnectingNodeId] = useState(null);
 
   const transformNodesToReactFlow = useCallback(mindMap => {
     const horizontalSpacing = 250;
@@ -269,21 +281,38 @@ export default function MindMapVisualization({ mindMap }) {
             : 'RL'; // dagre-rl
 
         const g = new dagre.graphlib.Graph();
+
+        // Enhanced dagre settings based on documentation
         g.setGraph({
           rankdir: direction,
-          nodesep: 80,
-          ranksep: 120,
-          edgesep: 40,
-          ranker: 'network-simplex', // 'tight-tree' or 'longest-path' are other options
+          align: 'DL', // Down-Left alignment for more natural tree appearance
+          nodesep: 100, // Increased spacing between nodes in same rank
+          ranksep: 150, // Increased spacing between ranks
+          edgesep: 50, // Increased edge spacing
+          marginx: 20, // Margin for the graph
+          marginy: 20,
+          ranker: 'network-simplex', // Best for trees/hierarchical layouts
+          acyclicer: 'greedy', // Handles cycles in graph
         });
         g.setDefaultEdgeLabel(() => ({}));
 
+        // Set node dimensions with some padding for better spacing
         nodes.forEach(node => {
-          g.setNode(node.id, { width: 100, height: 40 });
+          g.setNode(node.id, {
+            width: 150, // Increased width for better text display
+            height: 50, // Increased height
+            paddingLeft: 20,
+            paddingRight: 20,
+            paddingTop: 10,
+            paddingBottom: 10,
+          });
         });
 
         edges.forEach(edge => {
-          g.setEdge(edge.source, edge.target);
+          g.setEdge(edge.source, edge.target, {
+            weight: 1, // Default weight for edges
+            minlen: 1, // Minimum edge length in ranks
+          });
         });
 
         dagre.layout(g);
@@ -293,8 +322,8 @@ export default function MindMapVisualization({ mindMap }) {
           return {
             ...node,
             position: {
-              x: nodeWithPosition.x - 50,
-              y: nodeWithPosition.y - 20,
+              x: nodeWithPosition.x - 75, // Centered based on new width
+              y: nodeWithPosition.y - 25, // Centered based on new height
             },
           };
         });
@@ -304,10 +333,20 @@ export default function MindMapVisualization({ mindMap }) {
 
       if (layoutType === 'circular') {
         const center = { x: 500, y: 500 };
-        const radius = 300;
+        const radius = Math.max(350, nodes.length * 30); // Dynamic radius based on node count
         const angleStep = (2 * Math.PI) / nodes.length;
 
-        const newNodes = nodes.map((node, index) => ({
+        // Sort nodes by their connections to place connected nodes closer together
+        const nodeConnections = nodes.map(node => ({
+          ...node,
+          connectionCount: edges.filter(
+            edge => edge.source === node.id || edge.target === node.id
+          ).length,
+        }));
+
+        nodeConnections.sort((a, b) => b.connectionCount - a.connectionCount);
+
+        const newNodes = nodeConnections.map((node, index) => ({
           ...node,
           position: {
             x: center.x + radius * Math.cos(index * angleStep),
@@ -341,6 +380,39 @@ export default function MindMapVisualization({ mindMap }) {
       );
     },
     [setEdges]
+  );
+
+  const onConnectStart = useCallback((_, { nodeId }) => {
+    setConnectingNodeId(nodeId);
+  }, []);
+
+  const onConnectEnd = useCallback(
+    event => {
+      const targetIsPane = event.target.classList.contains('react-flow__pane');
+      if (targetIsPane && connectingNodeId) {
+        const newNode = {
+          id: `node-${Date.now()}`,
+          type: 'mindmap',
+          position: reactFlowInstance.project({
+            x: event.clientX,
+            y: event.clientY,
+          }),
+          data: { label: 'New Node' },
+        };
+        setNodes(nds => [...nds, newNode]);
+        setEdges(eds => [
+          ...eds,
+          {
+            id: `${connectingNodeId}-${newNode.id}`,
+            source: connectingNodeId,
+            target: newNode.id,
+            type: selectedEdgeType,
+          },
+        ]);
+      }
+      setConnectingNodeId(null);
+    },
+    [connectingNodeId, reactFlowInstance, setNodes, setEdges, selectedEdgeType]
   );
 
   useEffect(() => {
@@ -452,9 +524,7 @@ export default function MindMapVisualization({ mindMap }) {
           }}
           onNodeContextMenu={onNodeContextMenu}
           onClick={event => {
-            // Close context menu when clicking anywhere in the canvas
             setContextMenu(null);
-            // Only clear selection and node detail when clicking the background
             if (event.target === event.currentTarget) {
               setShowNodeDetail(false);
               setSelectedNode(null);
@@ -463,6 +533,9 @@ export default function MindMapVisualization({ mindMap }) {
           onPaneClick={() => {
             setContextMenu(null);
           }}
+          onConnectStart={onConnectStart}
+          onConnectEnd={onConnectEnd}
+          connectOnClick={false}
         >
           <Background
             color="#64748b"
@@ -470,6 +543,14 @@ export default function MindMapVisualization({ mindMap }) {
             size={1}
             style={{ backgroundColor: '#ffffff' }}
           />
+          <Panel
+            position="top-left"
+            className="bg-white text-black p-2 rounded-lg shadow-lg"
+          >
+            <div className="text-sm font-medium">
+              Nodes: {nodes.length} | Edges: {edges.length}
+            </div>
+          </Panel>
         </ReactFlow>
 
         {contextMenu && (
